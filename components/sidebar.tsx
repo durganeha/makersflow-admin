@@ -12,6 +12,7 @@ import {
   Layers,
   Settings,
   UserCircle2,
+  LogOut,
 } from "lucide-react";
 
 export default function Sidebar() {
@@ -19,30 +20,37 @@ export default function Sidebar() {
   const { profile, loading } = useProfile();
 
   const linkClass = (path: string) =>
-    `group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+    `group flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
       pathname === path
-        ? "bg-indigo-600 text-white shadow-sm"
-        : "text-slate-400 hover:bg-slate-800/60 hover:text-white"
+        ? "bg-blue-50 text-blue-600 border-l-4 border-blue-600"
+        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
     }`;
 
   return (
-    <aside className="flex h-screen w-72 flex-col border-r border-slate-800 bg-[#0f172a]">
+    <aside className="flex h-screen w-64 flex-col border-r border-gray-200 bg-white">
       {/* Logo */}
-      <div className="border-b border-slate-800 px-6 py-6">
-        <h1 className="text-xl font-bold text-white">
-          MakersFlow
-        </h1>
-        <p className="mt-1 text-xs text-slate-500">
-          Admin Portal
-        </p>
+      <div className="border-b border-gray-200 px-6 py-5">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white font-bold text-sm">
+            MF
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-gray-900">
+              MakersFlow
+            </h1>
+            <p className="text-xs text-gray-500">
+              Admin Portal
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Navigation */}
-      <div className="flex-1 overflow-y-auto px-4 py-6">
-        <nav className="space-y-8">
+      <div className="flex-1 overflow-y-auto px-3 py-6">
+        <nav className="space-y-6">
           {/* Overview */}
           <div>
-            <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <p className="mb-3 px-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
               Overview
             </p>
 
@@ -54,7 +62,7 @@ export default function Sidebar() {
 
           {/* LMS */}
           <div>
-            <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <p className="mb-3 px-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
               LMS
             </p>
 
@@ -78,7 +86,7 @@ export default function Sidebar() {
 
           {/* Store */}
           <div>
-            <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <p className="mb-3 px-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
               Store
             </p>
 
@@ -97,47 +105,48 @@ export default function Sidebar() {
 
           {/* Content */}
           <div>
-            <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <p className="mb-3 px-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
               Content
             </p>
 
-            <Link href="/news" className={linkClass("/news")}>
-              <Newspaper size={18} />
-              News Articles
-            </Link>
+            <div className="space-y-1">
+              <Link href="/news" className={linkClass("/news")}>
+                <Newspaper size={18} />
+                News
+              </Link>
+            </div>
           </div>
 
           {/* System */}
           <div>
-            <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <p className="mb-3 px-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
               System
             </p>
 
-            <Link href="/settings" className={linkClass("/settings")}>
-              <Settings size={18} />
-              Settings
-            </Link>
+            <div className="space-y-1">
+              <Link href="/settings" className={linkClass("/settings")}>
+                <Settings size={18} />
+                Settings
+              </Link>
+
+              <Link href="/profile" className={linkClass("/profile")}>
+                <UserCircle2 size={18} />
+                Profile
+              </Link>
+            </div>
           </div>
         </nav>
       </div>
 
-      {/* User Section */}
-      <div className="border-t border-slate-800 p-4">
-        <div className="flex items-center gap-3 rounded-xl bg-slate-900 p-3">
-          <UserCircle2
-            size={38}
-            className="text-slate-400"
-          />
-
-          <div>
-            <p className="text-sm font-medium text-white">
-              {loading ? "Loading..." : profile?.role ?? "Super Admin"}
-            </p>
-
-            <p className="text-xs text-slate-500">
-              {profile?.email ?? "admin@makersflow.in"}
-            </p>
-          </div>
+      {/* Footer */}
+      <div className="border-t border-gray-200 p-4">
+        <div className="rounded-lg bg-gray-50 p-3">
+          <p className="text-xs text-gray-600">
+            Logged in as
+          </p>
+          <p className="mt-1 text-sm font-medium text-gray-900 truncate">
+            {profile?.email || "Admin"}
+          </p>
         </div>
       </div>
     </aside>
