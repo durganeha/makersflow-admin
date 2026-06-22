@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Search, Plus, ChevronRight, Edit2, Trash2 } from "lucide-react";
+import { Search, Plus, Edit2, Trash2, Eye } from "lucide-react";
 
 type Course = {
   id: string;
@@ -21,6 +21,7 @@ export default function CoursesPage() {
 
   const [courses, setCourses] = useState<Course[]>([]);
   const [search, setSearch] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadCourses() {
@@ -40,21 +41,53 @@ export default function CoursesPage() {
     loadCourses();
   }, []);
 
+  const handleView = (id: string) => {
+    router.push(`/courses/${id}`);
+  };
+
+  const handleEdit = (id: string) => {
+    router.push(`/courses/${id}/edit`);
+  };
+
+  const handleDelete = async (id: string) => {
+    const confirmed = confirm("Are you sure you want to delete this course? This action cannot be undone.");
+    if (!confirmed) return;
+
+    setDeletingId(id);
+
+    const { error } = await supabase
+      .from("courses")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Delete error:", error);
+      alert("Failed to delete course. Please try again.");
+    } else {
+      // Remove from local state instantly — no need to re-fetch
+      setCourses((prev) => prev.filter((c) => c.id !== id));
+    }
+
+    setDeletingId(null);
+  };
+
   const filteredCourses = courses.filter((course) =>
     course.title.toLowerCase().includes(search.toLowerCase())
   );
 
   const getLevelColor = (level: string) => {
-    switch(level) {
-      case "beginner": return "bg-green-100 text-green-800";
+    switch (level) {
+      case "beginner":     return "bg-green-100 text-green-800";
       case "intermediate": return "bg-yellow-100 text-yellow-800";
-      case "advanced": return "bg-orange-100 text-orange-800";
-      default: return "bg-gray-100 text-gray-800";
+      case "advanced":     return "bg-orange-100 text-orange-800";
+      default:             return "bg-gray-100 text-gray-800";
     }
   };
 
   const getStatusColor = (published: boolean) => {
-    return published ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800";
+    return published
+      ? "bg-blue-100 text-blue-800"
+      : "bg-gray-100 text-gray-800";
   };
 
   return (
@@ -63,9 +96,7 @@ export default function CoursesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Courses</h1>
-          <p className="mt-1 text-gray-600">
-            Manage and create LMS courses
-          </p>
+          <p className="mt-1 text-gray-600">Manage and create LMS courses</p>
         </div>
 
         <button
@@ -119,7 +150,10 @@ export default function CoursesPage() {
               </tr>
             ) : (
               filteredCourses.map((course) => (
-                <tr key={course.id} className="border-t border-gray-200 hover:bg-gray-50 transition">
+                <tr
+                  key={course.id}
+                  className="border-t border-gray-200 hover:bg-gray-50 transition"
+                >
                   <td className="px-6 py-4">
                     <p className="font-medium text-gray-900">{course.title}</p>
                   </td>
@@ -143,14 +177,37 @@ export default function CoursesPage() {
                       {course.is_published ? "Published" : "Draft"}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <button className="p-2 text-gray-600 hover:bg-gray-200 rounded-lg transition">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center justify-center gap-1">
+
+                      {/* VIEW */}
+                      <button
+                        onClick={() => handleView(course.id)}
+                        title="View course"
+                        className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition"
+                      >
+                        <Eye size={16} />
+                      </button>
+
+                      {/* EDIT */}
+                      <button
+                        onClick={() => handleEdit(course.id)}
+                        title="Edit course"
+                        className="p-2 text-gray-600 hover:bg-gray-200 rounded-lg transition"
+                      >
                         <Edit2 size={16} />
                       </button>
-                      <button className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition">
+
+                      {/* DELETE */}
+                      <button
+                        onClick={() => handleDelete(course.id)}
+                        title="Delete course"
+                        disabled={deletingId === course.id}
+                        className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
                         <Trash2 size={16} />
                       </button>
+
                     </div>
                   </td>
                 </tr>
@@ -163,7 +220,11 @@ export default function CoursesPage() {
       {/* Footer Info */}
       {filteredCourses.length > 0 && (
         <div className="text-sm text-gray-600">
-          Showing <span className="font-semibold text-gray-900">{filteredCourses.length}</span> of <span className="font-semibold text-gray-900">{courses.length}</span> courses
+          Showing{" "}
+          <span className="font-semibold text-gray-900">{filteredCourses.length}</span>{" "}
+          of{" "}
+          <span className="font-semibold text-gray-900">{courses.length}</span>{" "}
+          courses
         </div>
       )}
     </div>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Search, Plus, Edit2, Trash2 } from "lucide-react";
+import { Search, Plus, Edit2, Trash2, Eye } from "lucide-react";
 
 type Product = {
   id: string;
@@ -19,6 +19,7 @@ export default function ProductsPage() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadProducts() {
@@ -38,17 +39,51 @@ export default function ProductsPage() {
     loadProducts();
   }, []);
 
+  const handleView = (id: string) => {
+    router.push(`/products/${id}`);
+  };
+
+  const handleEdit = (id: string) => {
+    router.push(`/products/${id}/edit`);
+  };
+
+  const handleDelete = async (id: string) => {
+    const confirmed = confirm("Are you sure you want to delete this product? This action cannot be undone.");
+    if (!confirmed) return;
+
+    setDeletingId(id);
+
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Delete error:", error);
+      alert("Failed to delete product. Please try again.");
+    } else {
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+    }
+
+    setDeletingId(null);
+  };
+
   const filteredProducts = products.filter((product) =>
     product.title.toLowerCase().includes(search.toLowerCase())
   );
 
   const getStatusColor = (status: string) => {
-    switch(status) {
+    switch (status) {
       case "available": return "bg-green-100 text-green-800";
-      case "sold_out": return "bg-red-100 text-red-800";
-      case "archived": return "bg-gray-100 text-gray-800";
-      default: return "bg-blue-100 text-blue-800";
+      case "sold_out":  return "bg-red-100 text-red-800";
+      case "archived":  return "bg-gray-100 text-gray-800";
+      default:          return "bg-blue-100 text-blue-800";
     }
+  };
+
+  const formatStatus = (status: string) => {
+    if (!status) return "Active";
+    return status.replace("_", " ").charAt(0).toUpperCase() + status.slice(1);
   };
 
   return (
@@ -57,9 +92,7 @@ export default function ProductsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Products</h1>
-          <p className="mt-1 text-gray-600">
-            Manage your store products
-          </p>
+          <p className="mt-1 text-gray-600">Manage your store products</p>
         </div>
 
         <button
@@ -112,16 +145,19 @@ export default function ProductsPage() {
               </tr>
             ) : (
               filteredProducts.map((product) => (
-                <tr key={product.id} className="border-t border-gray-200 hover:bg-gray-50 transition">
-                  <td className="px-6 py-4 flex items-center gap-3">
-                    {product.thumbnail_url && (
-                      <img
-                        src={product.thumbnail_url}
-                        alt={product.title}
-                        className="h-10 w-10 rounded-lg object-cover"
-                      />
-                    )}
-                    <div>
+                <tr
+                  key={product.id}
+                  className="border-t border-gray-200 hover:bg-gray-50 transition"
+                >
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      {product.thumbnail_url && (
+                        <img
+                          src={product.thumbnail_url}
+                          alt={product.title}
+                          className="h-10 w-10 rounded-lg object-cover"
+                        />
+                      )}
                       <p className="font-medium text-gray-900">{product.title}</p>
                     </div>
                   </td>
@@ -133,17 +169,40 @@ export default function ProductsPage() {
                   </td>
                   <td className="px-6 py-4">
                     <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(product.status)}`}>
-                      {product.status ? product.status.replace("_", " ").charAt(0).toUpperCase() + product.status.slice(1) : "Active"}
+                      {formatStatus(product.status)}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <button className="p-2 text-gray-600 hover:bg-gray-200 rounded-lg transition">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center justify-center gap-1">
+
+                      {/* VIEW */}
+                      <button
+                        onClick={() => handleView(product.id)}
+                        title="View product"
+                        className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition"
+                      >
+                        <Eye size={16} />
+                      </button>
+
+                      {/* EDIT */}
+                      <button
+                        onClick={() => handleEdit(product.id)}
+                        title="Edit product"
+                        className="p-2 text-gray-600 hover:bg-gray-200 rounded-lg transition"
+                      >
                         <Edit2 size={16} />
                       </button>
-                      <button className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition">
+
+                      {/* DELETE */}
+                      <button
+                        onClick={() => handleDelete(product.id)}
+                        title="Delete product"
+                        disabled={deletingId === product.id}
+                        className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
                         <Trash2 size={16} />
                       </button>
+
                     </div>
                   </td>
                 </tr>
@@ -156,7 +215,11 @@ export default function ProductsPage() {
       {/* Footer Info */}
       {filteredProducts.length > 0 && (
         <div className="text-sm text-gray-600">
-          Showing <span className="font-semibold text-gray-900">{filteredProducts.length}</span> of <span className="font-semibold text-gray-900">{products.length}</span> products
+          Showing{" "}
+          <span className="font-semibold text-gray-900">{filteredProducts.length}</span>{" "}
+          of{" "}
+          <span className="font-semibold text-gray-900">{products.length}</span>{" "}
+          products
         </div>
       )}
     </div>

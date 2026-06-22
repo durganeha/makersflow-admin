@@ -12,6 +12,7 @@ import {
   Layers,
   Settings,
   UserCircle2,
+  Users,
   LogOut,
 } from "lucide-react";
 
@@ -35,12 +36,8 @@ export default function Sidebar() {
             MF
           </div>
           <div>
-            <h1 className="text-lg font-bold text-gray-900">
-              MakersFlow
-            </h1>
-            <p className="text-xs text-gray-500">
-              Admin Portal
-            </p>
+            <h1 className="text-lg font-bold text-gray-900">MakersFlow</h1>
+            <p className="text-xs text-gray-500">Admin Portal</p>
           </div>
         </div>
       </div>
@@ -53,7 +50,6 @@ export default function Sidebar() {
             <p className="mb-3 px-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
               Overview
             </p>
-
             <Link href="/dashboard" className={linkClass("/dashboard")}>
               <LayoutDashboard size={18} />
               Dashboard
@@ -65,18 +61,15 @@ export default function Sidebar() {
             <p className="mb-3 px-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
               LMS
             </p>
-
             <div className="space-y-1">
               <Link href="/courses" className={linkClass("/courses")}>
                 <BookOpen size={18} />
                 Courses
               </Link>
-
               <Link href="/modules" className={linkClass("/modules")}>
                 <Layers size={18} />
                 Modules
               </Link>
-
               <Link href="/lessons" className={linkClass("/lessons")}>
                 <FolderOpen size={18} />
                 Lessons
@@ -89,13 +82,11 @@ export default function Sidebar() {
             <p className="mb-3 px-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
               Store
             </p>
-
             <div className="space-y-1">
               <Link href="/categories" className={linkClass("/categories")}>
                 <FolderOpen size={18} />
                 Categories
               </Link>
-
               <Link href="/products" className={linkClass("/products")}>
                 <Package size={18} />
                 Products
@@ -108,11 +99,23 @@ export default function Sidebar() {
             <p className="mb-3 px-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
               Content
             </p>
-
             <div className="space-y-1">
               <Link href="/news" className={linkClass("/news")}>
                 <Newspaper size={18} />
                 News
+              </Link>
+            </div>
+          </div>
+
+          {/* Users */}
+          <div>
+            <p className="mb-3 px-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Users
+            </p>
+            <div className="space-y-1">
+              <Link href="/users" className={linkClass("/users")}>
+                <Users size={18} />
+                Users
               </Link>
             </div>
           </div>
@@ -122,13 +125,11 @@ export default function Sidebar() {
             <p className="mb-3 px-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
               System
             </p>
-
             <div className="space-y-1">
               <Link href="/settings" className={linkClass("/settings")}>
                 <Settings size={18} />
                 Settings
               </Link>
-
               <Link href="/profile" className={linkClass("/profile")}>
                 <UserCircle2 size={18} />
                 Profile
@@ -141,9 +142,7 @@ export default function Sidebar() {
       {/* Footer */}
       <div className="border-t border-gray-200 p-4">
         <div className="rounded-lg bg-gray-50 p-3">
-          <p className="text-xs text-gray-600">
-            Logged in as
-          </p>
+          <p className="text-xs text-gray-600">Logged in as</p>
           <p className="mt-1 text-sm font-medium text-gray-900 truncate">
             {profile?.email || "Admin"}
           </p>
