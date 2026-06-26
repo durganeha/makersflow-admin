@@ -29,6 +29,9 @@ export default function NewProductPage() {
   const [status, setStatus] = useState("active");
   const [inStock, setInStock] = useState(true);
   const [features, setFeatures] = useState("");
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [addingCategory, setAddingCategory] = useState(false);
 
   // Categories from Supabase
   const [categories, setCategories] = useState<Category[]>([]);
@@ -96,6 +99,31 @@ export default function NewProductPage() {
     const { data } = supabase.storage.from("product-media").getPublicUrl(path);
     return data.publicUrl;
   };
+
+  async function handleAddCategory() {
+    const name = newCategoryName.trim();
+    if (!name) return;
+
+    // Generate slug from name
+    const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+
+    setAddingCategory(true);
+    const { data, error } = await supabase
+      .from("categories")
+      .insert({ name, slug })   // 👈 add slug here
+      .select("id, name")
+      .single();
+
+    if (error) {
+      alert(error.message);
+    } else if (data) {
+      setCategories((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+      setCategory(data.name);
+      setNewCategoryName("");
+      setShowAddCategory(false);
+    }
+    setAddingCategory(false);
+  }
 
   async function createProduct() {
     if (!title.trim()) {
@@ -237,12 +265,20 @@ export default function NewProductPage() {
           </div>
 
           {/* Category dropdown — populated from Supabase categories table */}
+          {/* Category dropdown — populated from Supabase categories table */}
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-2">Category</label>
             <select
               className="w-full border border-gray-300 px-4 py-2.5 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white"
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={(e) => {
+                if (e.target.value === "__add_new__") {
+                  setShowAddCategory(true);
+                } else {
+                  setCategory(e.target.value);
+                  setShowAddCategory(false);
+                }
+              }}
             >
               <option value="">Select a category...</option>
               {categories.map((cat) => (
@@ -250,16 +286,46 @@ export default function NewProductPage() {
                   {cat.name}
                 </option>
               ))}
+              <option value="__add_new__">➕ Add new category...</option>
             </select>
-            {categories.length === 0 && (
-              <p className="text-xs text-gray-400 mt-1">
-                No categories found.{" "}
+
+            {showAddCategory && (
+              <div className="mt-3 flex gap-2 items-center p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="New category name..."
+                  className="flex-1 border border-gray-300 px-3 py-2 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleAddCategory();
+                    if (e.key === "Escape") { setShowAddCategory(false); setNewCategoryName(""); }
+                  }}
+                />
                 <button
                   type="button"
-                  onClick={() => router.push("/categories")}
-                  className="text-blue-500 underline hover:text-blue-700"
+                  onClick={handleAddCategory}
+                  disabled={addingCategory || !newCategoryName.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition"
                 >
-                  Create one first
+                  {addingCategory ? "Adding..." : "Add"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowAddCategory(false); setNewCategoryName(""); }}
+                  className="px-3 py-2 border border-gray-300 text-gray-600 text-sm rounded-lg hover:bg-gray-100 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+
+            {categories.length === 0 && !showAddCategory && (
+              <p className="text-xs text-gray-400 mt-1">
+                No categories yet.{" "}
+                <button type="button" onClick={() => setShowAddCategory(true)} className="text-blue-500 underline hover:text-blue-700">
+                  Add one now
                 </button>
               </p>
             )}

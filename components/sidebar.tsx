@@ -66,14 +66,6 @@ export default function Sidebar() {
                 <BookOpen size={18} />
                 Courses
               </Link>
-              <Link href="/modules" className={linkClass("/modules")}>
-                <Layers size={18} />
-                Modules
-              </Link>
-              <Link href="/lessons" className={linkClass("/lessons")}>
-                <FolderOpen size={18} />
-                Lessons
-              </Link>
             </div>
           </div>
 
@@ -83,10 +75,6 @@ export default function Sidebar() {
               Store
             </p>
             <div className="space-y-1">
-              <Link href="/categories" className={linkClass("/categories")}>
-                <FolderOpen size={18} />
-                Categories
-              </Link>
               <Link href="/products" className={linkClass("/products")}>
                 <Package size={18} />
                 Products
