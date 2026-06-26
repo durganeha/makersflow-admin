@@ -19,6 +19,15 @@ export default function NewCoursePage() {
   const [isPublished, setIsPublished] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  function generateSlug(text: string) {
+    return text
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-");
+  }
+
   async function createCourse() {
     if (!title.trim()) {
       alert("Course title is required");
@@ -66,9 +75,7 @@ export default function NewCoursePage() {
       </div>
 
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">
-          Create New Course
-        </h1>
+        <h1 className="text-3xl font-bold text-gray-900">Create New Course</h1>
         <p className="mt-2 text-gray-600">
           Add all the details about your course below
         </p>
@@ -80,6 +87,7 @@ export default function NewCoursePage() {
         <div className="space-y-6">
           <h2 className="text-lg font-semibold text-gray-900">Basic Information</h2>
 
+          {/* Title */}
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-2">
               Course Title <span className="text-red-500">*</span>
@@ -89,10 +97,15 @@ export default function NewCoursePage() {
               placeholder="e.g., Introduction to React"
               className="w-full border border-gray-300 px-4 py-2.5 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                const newTitle = e.target.value;
+                setTitle(newTitle);
+                setSlug(generateSlug(newTitle));
+              }}
             />
           </div>
 
+          {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-2">
               Description
@@ -107,19 +120,29 @@ export default function NewCoursePage() {
           </div>
 
           <div className="grid grid-cols-2 gap-6">
+            {/* Slug */}
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-2">
                 Slug
               </label>
-              <input
-                type="text"
-                placeholder="e.g., intro-to-react"
-                className="w-full border border-gray-300 px-4 py-2.5 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="auto-generated-from-title"
+                  className="w-full border border-gray-300 px-4 py-2.5 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                🔗 yoursite.com/courses/
+                <span className="text-gray-800 font-medium">
+                  {slug || "auto-generated-from-title"}
+                </span>
+              </p>
             </div>
 
+            {/* Category */}
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-2">
                 Category
@@ -134,6 +157,7 @@ export default function NewCoursePage() {
             </div>
           </div>
 
+          {/* Thumbnail */}
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-2">
               Thumbnail URL
@@ -189,13 +213,13 @@ export default function NewCoursePage() {
               checked={isFree}
               onChange={(e) => {
                 setIsFree(e.target.checked);
-                if (e.target.checked) {
-                  setPrice("0");
-                }
+                if (e.target.checked) setPrice("0");
               }}
               className="w-4 h-4 rounded border-gray-300 cursor-pointer"
             />
-            <span className="text-sm font-medium text-gray-700">Make this course free</span>
+            <span className="text-sm font-medium text-gray-700">
+              Make this course free
+            </span>
           </label>
         </div>
 
@@ -210,7 +234,9 @@ export default function NewCoursePage() {
               onChange={(e) => setIsPublished(e.target.checked)}
               className="w-4 h-4 rounded border-gray-300 cursor-pointer"
             />
-            <span className="text-sm font-medium text-gray-700">Publish course immediately</span>
+            <span className="text-sm font-medium text-gray-700">
+              Publish course immediately
+            </span>
           </label>
 
           <p className="text-xs text-gray-500 ml-7">
