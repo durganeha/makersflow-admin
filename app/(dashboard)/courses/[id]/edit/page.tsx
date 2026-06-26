@@ -5,13 +5,20 @@ import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft } from "lucide-react";
 
+type Category = {
+  id: string;
+  name: string;
+};
+
 export default function EditCoursePage() {
   const router = useRouter();
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [form, setForm] = useState({
     title: "",
+    description: "",
     category: "",
     level: "beginner",
     price: 0,
@@ -20,6 +27,14 @@ export default function EditCoursePage() {
   });
 
   useEffect(() => {
+    async function fetchCategories() {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name")
+        .order("name");
+      if (!error && data) setCategories(data);
+    }
+
     async function fetchCourse() {
       const { data, error } = await supabase
         .from("courses")
@@ -28,16 +43,20 @@ export default function EditCoursePage() {
         .single();
 
       if (error) console.error(error);
-      else setForm({
-        title: data.title,
-        category: data.category || "",
-        level: data.level,
-        price: data.price,
-        is_free: data.is_free,
-        is_published: data.is_published,
-      });
+      else
+        setForm({
+          title: data.title,
+          description: data.description || "",
+          category: data.category || "",
+          level: data.level,
+          price: data.price,
+          is_free: data.is_free,
+          is_published: data.is_published,
+        });
       setLoading(false);
     }
+
+    fetchCategories();
     fetchCourse();
   }, [id]);
 
@@ -81,14 +100,45 @@ export default function EditCoursePage() {
           />
         </div>
 
-        {/* Category */}
+        {/* Description */}
+        <div>
+          <label className="text-sm font-medium text-gray-700">Description</label>
+          <textarea
+            rows={4}
+            placeholder="Describe what students will learn in this course..."
+            className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+          />
+        </div>
+
+        {/* Category dropdown */}
         <div>
           <label className="text-sm font-medium text-gray-700">Category</label>
-          <input
-            className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+          <select
+            className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 bg-white"
             value={form.category}
             onChange={(e) => setForm({ ...form, category: e.target.value })}
-          />
+          >
+            <option value="">Select a category...</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.name}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+          {categories.length === 0 && (
+            <p className="text-xs text-gray-400 mt-1">
+              No categories found.{" "}
+              <button
+                type="button"
+                onClick={() => router.push("/categories")}
+                className="text-blue-500 underline hover:text-blue-700"
+              >
+                Create one first
+              </button>
+            </p>
+          )}
         </div>
 
         {/* Level */}
@@ -114,7 +164,9 @@ export default function EditCoursePage() {
             onChange={(e) => setForm({ ...form, is_free: e.target.checked })}
             className="w-4 h-4"
           />
-          <label htmlFor="is_free" className="text-sm font-medium text-gray-700">Free Course</label>
+          <label htmlFor="is_free" className="text-sm font-medium text-gray-700">
+            Free Course
+          </label>
         </div>
 
         {/* Price — only show if not free */}
@@ -139,7 +191,9 @@ export default function EditCoursePage() {
             onChange={(e) => setForm({ ...form, is_published: e.target.checked })}
             className="w-4 h-4"
           />
-          <label htmlFor="is_published" className="text-sm font-medium text-gray-700">Published</label>
+          <label htmlFor="is_published" className="text-sm font-medium text-gray-700">
+            Published
+          </label>
         </div>
 
         <button

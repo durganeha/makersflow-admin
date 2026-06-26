@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Save, Upload, X, Star, Play } from "lucide-react";
@@ -9,6 +9,11 @@ type MediaFile = {
   file: File;
   preview: string;
   type: "image" | "video";
+};
+
+type Category = {
+  id: string;
+  name: string;
 };
 
 export default function NewProductPage() {
@@ -21,16 +26,30 @@ export default function NewProductPage() {
   const [price, setPrice] = useState("");
   const [originalPrice, setOriginalPrice] = useState("");
   const [category, setCategory] = useState("");
-  const [subcategory, setSubcategory] = useState("");
   const [status, setStatus] = useState("active");
   const [inStock, setInStock] = useState(true);
   const [features, setFeatures] = useState("");
+
+  // Categories from Supabase
+  const [categories, setCategories] = useState<Category[]>([]);
 
   // Media
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [thumbnailIndex, setThumbnailIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string>("");
+
+  // Fetch categories on mount
+  useEffect(() => {
+    async function fetchCategories() {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name")
+        .order("name");
+      if (!error && data) setCategories(data);
+    }
+    fetchCategories();
+  }, []);
 
   // Auto-generate slug from title
   const handleTitleChange = (value: string) => {
@@ -66,7 +85,7 @@ export default function NewProductPage() {
     const path = `products/${productId}/${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
     const { error } = await supabase.storage
-      .from("product-media") // your storage bucket name
+      .from("product-media")
       .upload(path, media.file, { upsert: false });
 
     if (error) {
@@ -101,7 +120,6 @@ export default function NewProductPage() {
         price: Number(price) || 0,
         original_price: Number(originalPrice) || 0,
         category,
-        subcategory,
         status,
         in_stock: inStock,
         features: features
@@ -218,27 +236,33 @@ export default function NewProductPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">Category</label>
-              <input
-                type="text"
-                placeholder="e.g., Courses"
-                className="w-full border border-gray-300 px-4 py-2.5 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">Subcategory</label>
-              <input
-                type="text"
-                placeholder="e.g., Web Development"
-                className="w-full border border-gray-300 px-4 py-2.5 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-                value={subcategory}
-                onChange={(e) => setSubcategory(e.target.value)}
-              />
-            </div>
+          {/* Category dropdown — populated from Supabase categories table */}
+          <div>
+            <label className="block text-sm font-medium text-gray-900 mb-2">Category</label>
+            <select
+              className="w-full border border-gray-300 px-4 py-2.5 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              <option value="">Select a category...</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.name}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+            {categories.length === 0 && (
+              <p className="text-xs text-gray-400 mt-1">
+                No categories found.{" "}
+                <button
+                  type="button"
+                  onClick={() => router.push("/categories")}
+                  className="text-blue-500 underline hover:text-blue-700"
+                >
+                  Create one first
+                </button>
+              </p>
+            )}
           </div>
 
           <div>

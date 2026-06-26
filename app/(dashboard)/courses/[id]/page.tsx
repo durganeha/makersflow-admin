@@ -8,6 +8,7 @@ import { ArrowLeft } from "lucide-react";
 type Course = {
   id: string;
   title: string;
+  description: string;
   category: string;
   level: string;
   price: number;
@@ -52,7 +53,17 @@ export default function ViewCoursePage() {
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 space-y-4">
         <h1 className="text-2xl font-bold text-gray-900">{course.title}</h1>
 
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        {/* Description */}
+        {course.description && (
+          <div>
+            <p className="text-sm text-gray-500 mb-1">Description</p>
+            <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">
+              {course.description}
+            </p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-4 text-sm pt-2 border-t border-gray-100">
           <div>
             <p className="text-gray-500">Category</p>
             <p className="font-medium text-gray-900">{course.category || "—"}</p>
@@ -63,15 +74,21 @@ export default function ViewCoursePage() {
           </div>
           <div>
             <p className="text-gray-500">Price</p>
-            <p className="font-medium text-green-600">{course.is_free ? "Free" : `₹${course.price}`}</p>
+            <p className="font-medium text-green-600">
+              {course.is_free ? "Free" : `₹${course.price}`}
+            </p>
           </div>
           <div>
             <p className="text-gray-500">Status</p>
-            <p className="font-medium text-gray-900">{course.is_published ? "Published" : "Draft"}</p>
+            <p className="font-medium text-gray-900">
+              {course.is_published ? "Published" : "Draft"}
+            </p>
           </div>
           <div>
             <p className="text-gray-500">Created At</p>
-            <p className="font-medium text-gray-900">{new Date(course.created_at).toLocaleDateString()}</p>
+            <p className="font-medium text-gray-900">
+              {new Date(course.created_at).toLocaleDateString()}
+            </p>
           </div>
         </div>
 
