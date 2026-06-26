@@ -14,25 +14,24 @@ type Module = {
   title: string;
   course_id: string;
   order: number;
-  courses?: { title: string }; // joined from courses table
+  courses?: { title: string };
 };
 
 const emptyForm = { title: "", course_id: "", order: 1 };
 
 export default function ModulesPage() {
-  const [modules, setModules]     = useState<Module[]>([]);
-  const [courses, setCourses]     = useState<Course[]>([]);
-  const [showForm, setShowForm]   = useState(false);
-  const [form, setForm]           = useState(emptyForm);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [modules, setModules]       = useState<Module[]>([]);
+  const [courses, setCourses]       = useState<Course[]>([]);
+  const [showForm, setShowForm]     = useState(false);
+  const [form, setForm]             = useState(emptyForm);
+  const [editingId, setEditingId]   = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [saving, setSaving]       = useState(false);
-  const [loading, setLoading]     = useState(true);
+  const [saving, setSaving]         = useState(false);
+  const [loading, setLoading]       = useState(true);
 
   // ── Load data ──────────────────────────────────────────────
   useEffect(() => {
     async function load() {
-      // Fetch modules joined with course title
       const { data: modulesData, error: modulesError } = await supabase
         .from("modules")
         .select("*, courses(title)")
@@ -41,7 +40,6 @@ export default function ModulesPage() {
       if (modulesError) console.error(modulesError);
       else setModules(modulesData || []);
 
-      // Fetch courses for the dropdown
       const { data: coursesData, error: coursesError } = await supabase
         .from("courses")
         .select("id, title")
@@ -77,22 +75,52 @@ export default function ModulesPage() {
 
   // ── Save (create or update) ────────────────────────────────
   const handleSave = async () => {
-    if (!form.title.trim()) {
-      alert("Module title is required.");
-      return;
-    }
-    if (!form.course_id) {
-      alert("Please select a course.");
-      return;
-    }
+  if (!form.title.trim()) {
+    alert("Module title is required.");
+    return;
+  }
+  if (!form.course_id) {
+    alert("Please select a course.");
+    return;
+  }
+
+  const orderNum = parseInt(String(form.order), 10) || 1;
+
+  setSaving(true);
+
+  // ── Fetch all modules for this course fresh from DB ────────
+  const { data: courseModules, error: fetchError } = await supabase
+    .from("modules")
+    .select("id, order")
+    .eq("course_id", form.course_id);
+
+  if (fetchError) {
+    console.error(fetchError);
+    alert("Error validating order. Please try again.");
+    setSaving(false);
+    return;
+  }
+
+  // ── Check for duplicate order in JS (avoids reserved keyword) ──
+  const isDuplicate = (courseModules || []).some(
+    (m) => m.order === orderNum && m.id !== editingId
+  );
+
+  if (isDuplicate) {
+    alert(
+      `Order #${orderNum} is already taken in this course. Please choose a different order number.`
+    );
+    setSaving(false);
+    return;
+  }
 
     setSaving(true);
 
+    // ── Proceed with save ──────────────────────────────────────
     if (editingId) {
-      // UPDATE
       const { error } = await supabase
         .from("modules")
-        .update({ title: form.title, course_id: form.course_id, order: form.order })
+        .update({ title: form.title, course_id: form.course_id, order: orderNum })
         .eq("id", editingId);
 
       if (error) {
@@ -106,7 +134,7 @@ export default function ModulesPage() {
                   ...m,
                   title:     form.title,
                   course_id: form.course_id,
-                  order:     form.order,
+                  order:     orderNum,
                   courses:   { title: courses.find((c) => c.id === form.course_id)?.title || "" },
                 }
               : m
@@ -115,10 +143,9 @@ export default function ModulesPage() {
         handleCancel();
       }
     } else {
-      // CREATE
       const { data, error } = await supabase
         .from("modules")
-        .insert({ title: form.title, course_id: form.course_id, order: form.order })
+        .insert({ title: form.title, course_id: form.course_id, order: orderNum })
         .select("*, courses(title)")
         .single();
 
@@ -229,7 +256,9 @@ export default function ModulesPage() {
                 min={1}
                 className="w-full border border-gray-300 px-4 py-2.5 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                 value={form.order}
-                onChange={(e) => setForm({ ...form, order: Number(e.target.value) })}
+                onChange={(e) =>
+                  setForm({ ...form, order: parseInt(e.target.value, 10) || 1 })
+                }
               />
             </div>
           </div>
@@ -329,7 +358,8 @@ export default function ModulesPage() {
       {/* Footer count */}
       {modules.length > 0 && (
         <div className="text-sm text-gray-600">
-          <span className="font-semibold text-gray-900">{modules.length}</span> module{modules.length !== 1 ? "s" : ""} total
+          <span className="font-semibold text-gray-900">{modules.length}</span>{" "}
+          module{modules.length !== 1 ? "s" : ""} total
         </div>
       )}
     </div>
