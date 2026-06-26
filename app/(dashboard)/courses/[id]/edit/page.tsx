@@ -19,6 +19,8 @@ export default function EditCoursePage() {
   const [form, setForm] = useState({
     title: "",
     description: "",
+    slug: "",
+    thumbnail_url: "",
     category: "",
     level: "beginner",
     price: 0,
@@ -47,6 +49,8 @@ export default function EditCoursePage() {
         setForm({
           title: data.title,
           description: data.description || "",
+          slug: data.slug || "",
+          thumbnail_url: data.thumbnail_url || "",
           category: data.category || "",
           level: data.level,
           price: data.price,
@@ -109,6 +113,29 @@ export default function EditCoursePage() {
             className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 resize-none"
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
+          />
+        </div>
+
+        {/* Slug */}
+        <div>
+          <label className="text-sm font-medium text-gray-700">Slug</label>
+          <input
+            placeholder="e.g., intro-to-react"
+            className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+            value={form.slug}
+            onChange={(e) => setForm({ ...form, slug: e.target.value })}
+          />
+        </div>
+
+        {/* Thumbnail URL */}
+        <div>
+          <label className="text-sm font-medium text-gray-700">Thumbnail URL</label>
+          <input
+            type="url"
+            placeholder="https://example.com/image.jpg"
+            className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+            value={form.thumbnail_url}
+            onChange={(e) => setForm({ ...form, thumbnail_url: e.target.value })}
           />
         </div>
 

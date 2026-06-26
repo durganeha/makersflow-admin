@@ -8,8 +8,13 @@ import { ArrowLeft, Edit2 } from "lucide-react";
 type Product = {
   id: string;
   title: string;
+  slug: string;
+  description: string;
   category: string;
+  features: string[] | string;
   price: number;
+  original_price: number;
+  in_stock: boolean;
   status: string;
   thumbnail_url: string;
   created_at: string;
@@ -50,6 +55,13 @@ export default function ViewProductPage() {
     return status.replace("_", " ").charAt(0).toUpperCase() + status.slice(1);
   };
 
+  const featuresList = Array.isArray(product?.features)
+    ? product.features
+    : (product?.features || "")
+        .split(",")
+        .map((f) => f.trim())
+        .filter(Boolean);
+
   if (loading) return <div className="p-6 text-gray-500">Loading...</div>;
   if (!product) return <div className="p-6 text-red-500">Product not found.</div>;
 
@@ -79,15 +91,47 @@ export default function ViewProductPage() {
           </span>
         </div>
 
+        {/* Slug */}
+        {product.slug && (
+          <div className="text-sm">
+            <p className="text-gray-500">Slug</p>
+            <p className="font-medium text-gray-900">{product.slug}</p>
+          </div>
+        )}
+
+        {/* Description */}
+        {product.description && (
+          <div className="text-sm">
+            <p className="text-gray-500 mb-1">Description</p>
+            <p className="text-gray-900 whitespace-pre-wrap">{product.description}</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-gray-500">Category</p>
             <p className="font-medium text-gray-900">{product.category || "—"}</p>
           </div>
+
           <div>
             <p className="text-gray-500">Price</p>
-            <p className="font-semibold text-gray-900">₹{product.price}</p>
+            <p className="font-semibold text-gray-900">
+              ₹{product.price}
+              {product.original_price > 0 && product.original_price > product.price && (
+                <span className="ml-2 text-gray-400 line-through font-normal">
+                  ₹{product.original_price}
+                </span>
+              )}
+            </p>
           </div>
+
+          <div>
+            <p className="text-gray-500">In Stock</p>
+            <p className="font-medium text-gray-900">
+              {product.in_stock ? "Yes" : "No"}
+            </p>
+          </div>
+
           <div>
             <p className="text-gray-500">Created At</p>
             <p className="font-medium text-gray-900">
@@ -95,6 +139,23 @@ export default function ViewProductPage() {
             </p>
           </div>
         </div>
+
+        {/* Features */}
+        {featuresList.length > 0 && (
+          <div className="text-sm">
+            <p className="text-gray-500 mb-2">Features</p>
+            <div className="flex flex-wrap gap-2">
+              {featuresList.map((feature, i) => (
+                <span
+                  key={i}
+                  className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+                >
+                  {feature}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         <button
           onClick={() => router.push(`/products/${id}/edit`)}
