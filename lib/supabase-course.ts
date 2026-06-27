@@ -292,7 +292,7 @@ export async function uploadThumbnail(file: File): Promise<string> {
   const fileName = `thumbnails/${Date.now()}.${ext}`;
 
   const { error } = await supabase.storage
-    .from("course-assets")
+    .from("course-media")
     .upload(fileName, file, { upsert: true });
 
   if (error) {
@@ -301,7 +301,7 @@ export async function uploadThumbnail(file: File): Promise<string> {
   }
 
   const { data } = supabase.storage
-    .from("course-assets")
+    .from("course-media")
     .getPublicUrl(fileName);
 
   return data.publicUrl;

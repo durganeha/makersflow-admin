@@ -14,6 +14,7 @@ type Course = {
   is_free: boolean;
   is_published: boolean;
   created_at: string;
+  thumbnail_url?: string | null;
 };
 
 export default function CoursesPage() {
@@ -134,6 +135,7 @@ export default function CoursesPage() {
           <div className="divide-y divide-gray-100">
             {[1, 2, 3].map((i) => (
               <div key={i} className="px-6 py-4 flex items-center gap-4 animate-pulse">
+                <div className="h-10 w-10 bg-gray-200 rounded-lg" />
                 <div className="h-4 bg-gray-200 rounded w-48" />
                 <div className="h-4 bg-gray-200 rounded w-24" />
                 <div className="h-6 bg-gray-200 rounded-full w-20" />
@@ -203,11 +205,24 @@ export default function CoursesPage() {
                     key={course.id}
                     className="hover:bg-gray-50 transition group"
                   >
-                    {/* Title */}
+                    {/* Title + thumbnail */}
                     <td className="px-6 py-4">
-                      <p className="font-medium text-gray-900 text-sm">
-                        {course.title}
-                      </p>
+                      <div className="flex items-center gap-3">
+                        {course.thumbnail_url ? (
+                          <img
+                            src={course.thumbnail_url}
+                            alt={course.title}
+                            className="h-10 w-10 rounded-lg object-cover border border-gray-200 flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="h-10 w-10 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0">
+                            <BookOpen size={16} className="text-gray-400" />
+                          </div>
+                        )}
+                        <p className="font-medium text-gray-900 text-sm">
+                          {course.title}
+                        </p>
+                      </div>
                     </td>
 
                     {/* Category */}
