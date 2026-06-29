@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Upload, X, Star, Play } from "lucide-react";
+import { uploadToS3, deleteFromS3, extractS3Key } from "@/lib/s3Upload";
 
 type Category = { id: string; name: string };
 type ExistingMedia = { url: string; type: "image" | "video" };
@@ -113,22 +114,28 @@ export default function EditProductPage() {
   }
 
   // Remove existing media
-  async function removeExistingMedia(index: number) {
-    const media = existingMedia[index];
-    const updated = existingMedia.filter((_, i) => i !== index);
-    setExistingMedia(updated);
+async function removeExistingMedia(index: number) {
+  const media = existingMedia[index];
+  const updated = existingMedia.filter((_, i) => i !== index);
+  setExistingMedia(updated);
 
-    const images = updated.filter((m) => m.type === "image").map((m) => m.url);
-    const videos = updated.filter((m) => m.type === "video").map((m) => m.url);
-    const newThumb = thumbnailUrl === media.url ? (images[0] || "") : thumbnailUrl;
-    setThumbnailUrl(newThumb);
+  const images = updated.filter((m) => m.type === "image").map((m) => m.url);
+  const videos = updated.filter((m) => m.type === "video").map((m) => m.url);
+  const newThumb = thumbnailUrl === media.url ? (images[0] || "") : thumbnailUrl;
+  setThumbnailUrl(newThumb);
 
-    await supabase.from("products").update({
-      images,
-      videos,
-      thumbnail_url: newThumb || null,
-    }).eq("id", id);
+  await supabase.from("products").update({
+    images,
+    videos,
+    thumbnail_url: newThumb || null,
+  }).eq("id", id);
+
+  // delete from S3
+  if (media.url.includes('amazonaws.com')) {
+    const key = extractS3Key(media.url, 'products');
+    if (key) await deleteFromS3(key);
   }
+}
 
   // Set thumbnail
   function setAsThumbnail(url: string) {
@@ -136,29 +143,23 @@ export default function EditProductPage() {
   }
 
   // Upload new file
-  async function uploadFile(file: File) {
-    setUploadError("");
-    const allowedTypes = ["image/png", "image/jpeg", "image/webp", "video/mp4", "video/quicktime", "video/webm"];
-    if (!allowedTypes.includes(file.type)) {
-      setUploadError("Unsupported file type.");
-      return;
-    }
-    const isVideo = file.type.startsWith("video/");
-    const maxSize = isVideo ? 100 * 1024 * 1024 : 5 * 1024 * 1024;
-    if (file.size > maxSize) {
-      setUploadError(`File too large. Images: 5 MB max, Videos: 100 MB max.`);
-      return;
-    }
-    setUploading(true);
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${id}-${Date.now()}.${fileExt}`;
-    const { error: uploadErr } = await supabase.storage
-      .from("product-images")
-      .upload(fileName, file, { cacheControl: "3600", upsert: false });
-    if (uploadErr) { setUploadError(uploadErr.message); setUploading(false); return; }
+async function uploadFile(file: File) {
+  setUploadError("");
+  const allowedTypes = ["image/png", "image/jpeg", "image/webp", "video/mp4", "video/quicktime", "video/webm"];
+  if (!allowedTypes.includes(file.type)) {
+    setUploadError("Unsupported file type.");
+    return;
+  }
+  const isVideo = file.type.startsWith("video/");
+  const maxSize = isVideo ? 100 * 1024 * 1024 : 5 * 1024 * 1024;
+  if (file.size > maxSize) {
+    setUploadError(`File too large. Images: 5 MB max, Videos: 100 MB max.`);
+    return;
+  }
 
-    const { data: publicUrlData } = supabase.storage.from("product-images").getPublicUrl(fileName);
-    const newUrl = publicUrlData.publicUrl;
+  setUploading(true);
+  try {
+    const newUrl = await uploadToS3(file, 'products');
     const newType: "image" | "video" = isVideo ? "video" : "image";
     const updatedMedia = [...existingMedia, { url: newUrl, type: newType }];
     setExistingMedia(updatedMedia);
@@ -173,9 +174,13 @@ export default function EditProductPage() {
       videos,
       thumbnail_url: newThumb || null,
     }).eq("id", id);
-
+  } catch (err) {
+    console.error(err);
+    setUploadError("Failed to upload file. Please try again.");
+  } finally {
     setUploading(false);
   }
+}
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];

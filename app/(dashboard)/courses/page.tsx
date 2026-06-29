@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Search, Plus, Edit2, Trash2, Eye, BookOpen } from "lucide-react";
+import { deleteFromS3, extractS3Key } from "@/lib/s3Upload";
 
 type Course = {
   id: string;
@@ -52,25 +53,63 @@ export default function CoursesPage() {
     router.push(`/courses/${id}/edit`);
   };
 
-  const handleDelete = async (id: string) => {
-    const confirmed = confirm(
-      "Are you sure you want to delete this course? All modules and lessons will also be deleted. This cannot be undone."
-    );
-    if (!confirmed) return;
+const handleDelete = async (id: string) => {
+  const confirmed = confirm(
+    "Are you sure you want to delete this course? All modules and lessons will also be deleted. This cannot be undone."
+  );
+  if (!confirmed) return;
 
-    setDeletingId(id);
+  setDeletingId(id);
 
+  try {
+    // fetch all media URLs before deleting — thumbnail + all lesson videos
+    const { data: courseData } = await supabase
+      .from("courses")
+      .select(`
+        thumbnail_url,
+        modules (
+          lessons ( video_url )
+        )
+      `)
+      .eq("id", id)
+      .single();
+
+    // delete the course — cascade deletes modules and lessons automatically
     const { error } = await supabase.from("courses").delete().eq("id", id);
 
     if (error) {
       console.error("Delete error:", error);
       alert("Failed to delete course. Please try again.");
-    } else {
-      setCourses((prev) => prev.filter((c) => c.id !== id));
+      setDeletingId(null);
+      return;
     }
 
+    // update UI immediately
+    setCourses((prev) => prev.filter((c) => c.id !== id));
+
+    // clean up S3 files in the background
+    if (courseData) {
+      // delete thumbnail
+      if (courseData.thumbnail_url?.includes('amazonaws.com')) {
+        const key = extractS3Key(courseData.thumbnail_url, 'courses');
+        if (key) await deleteFromS3(key);
+      }
+
+      // delete all lesson videos
+      const lessons = courseData.modules?.flatMap((m: any) => m.lessons || []) || [];
+      for (const lesson of lessons) {
+        if (lesson.video_url?.includes('amazonaws.com')) {
+          const key = extractS3Key(lesson.video_url, 'courses');
+          if (key) await deleteFromS3(key);
+        }
+      }
+    }
+  } catch (err) {
+    console.error(err);
+  } finally {
     setDeletingId(null);
-  };
+  }
+};
 
   const filteredCourses = courses.filter((course) =>
     course.title.toLowerCase().includes(search.toLowerCase())

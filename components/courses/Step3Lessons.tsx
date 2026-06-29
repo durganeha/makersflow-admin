@@ -19,8 +19,8 @@ import {
   createLesson,
   updateLesson,
   deleteLesson,
-  uploadVideo,
 } from "@/lib/supabase-course";
+import { uploadToS3, deleteFromS3, extractS3Key } from "@/lib/s3Upload";
 
 interface Props {
   courseId: string;
@@ -134,38 +134,50 @@ export default function Step3Lessons({
     return Object.keys(newErrors).length === 0;
   }
 
-  async function handleVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+async function handleVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    setUploadingVideo(true);
-    setVideoFileName(file.name);
+  setUploadingVideo(true);
+  setVideoFileName(file.name);
 
-    try {
-      const url = await uploadVideo(file);
-      setField("video_url", url);
-      // Auto-set duration if possible
-      const video = document.createElement("video");
-      video.preload = "metadata";
-      video.onloadedmetadata = () => {
-        setField("duration_secs", Math.round(video.duration));
-        URL.revokeObjectURL(video.src);
-      };
-      video.src = URL.createObjectURL(file);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to upload video. Please try again.");
-      setVideoFileName(null);
-    } finally {
-      setUploadingVideo(false);
+  try {
+    // delete old video from S3 if replacing
+    if (form.video_url?.includes('amazonaws.com')) {
+      const key = extractS3Key(form.video_url, 'courses');
+      if (key) await deleteFromS3(key);
     }
+
+    const url = await uploadToS3(file, 'courses');
+    setField("video_url", url);
+
+    // auto-set duration
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.onloadedmetadata = () => {
+      setField("duration_secs", Math.round(video.duration));
+      URL.revokeObjectURL(video.src);
+    };
+    video.src = URL.createObjectURL(file);
+  } catch (err) {
+    console.error(err);
+    alert("Failed to upload video. Please try again.");
+    setVideoFileName(null);
+  } finally {
+    setUploadingVideo(false);
+  }
+}
+
+async function removeVideo() {
+  if (form.video_url?.includes('amazonaws.com')) {
+    const key = extractS3Key(form.video_url, 'courses');
+    if (key) await deleteFromS3(key);
   }
 
-  function removeVideo() {
-    setField("video_url", "");
-    setVideoFileName(null);
-    if (videoInputRef.current) videoInputRef.current.value = "";
-  }
+  setField("video_url", "");
+  setVideoFileName(null);
+  if (videoInputRef.current) videoInputRef.current.value = "";
+}
 
   async function handleSave() {
     if (!validate() || !editing) return;
@@ -216,27 +228,35 @@ export default function Step3Lessons({
     }
   }
 
-  async function handleDelete(moduleId: string, lesson: Lesson) {
-    if (!confirm(`Delete "${lesson.title}"? This cannot be undone.`)) return;
+async function handleDelete(moduleId: string, lesson: Lesson) {
+  if (!confirm(`Delete "${lesson.title}"? This cannot be undone.`)) return;
 
-    setDeletingId(lesson.id);
-    try {
-      await deleteLesson(lesson.id);
-      onModulesChange(
-        modules.map((m) =>
-          m.id === moduleId
-            ? { ...m, lessons: m.lessons.filter((l) => l.id !== lesson.id) }
-            : m
-        )
-      );
-      if (editing?.lessonId === lesson.id) cancelEdit();
-    } catch (err) {
-      console.error(err);
-      alert("Failed to delete lesson. Please try again.");
-    } finally {
-      setDeletingId(null);
+  setDeletingId(lesson.id);
+  try {
+    await deleteLesson(lesson.id);
+
+    onModulesChange(
+      modules.map((m) =>
+        m.id === moduleId
+          ? { ...m, lessons: m.lessons.filter((l) => l.id !== lesson.id) }
+          : m
+      )
+    );
+
+    if (editing?.lessonId === lesson.id) cancelEdit();
+
+    // clean up S3 video in the background
+    if (lesson.video_url?.includes('amazonaws.com')) {
+      const key = extractS3Key(lesson.video_url, 'courses');
+      if (key) await deleteFromS3(key);
     }
+  } catch (err) {
+    console.error(err);
+    alert("Failed to delete lesson. Please try again.");
+  } finally {
+    setDeletingId(null);
   }
+}
 
   const totalLessons = modules.reduce(
     (acc, m) => acc + (m.lessons?.length || 0),
@@ -473,7 +493,7 @@ interface LessonFormProps {
   uploadingVideo: boolean;
   videoFileName: string | null;
   isEditing: boolean;
-  videoInputRef: React.RefObject<HTMLInputElement>;
+videoInputRef: React.RefObject<HTMLInputElement | null>
   setField: <K extends keyof LessonFormData>(
     key: K,
     value: LessonFormData[K]
@@ -481,7 +501,8 @@ interface LessonFormProps {
   onSave: () => void;
   onCancel: () => void;
   onVideoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onRemoveVideo: () => void;
+  // in the interface
+onRemoveVideo: () => Promise<void>;
 }
 
 function LessonForm({

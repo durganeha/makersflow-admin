@@ -3,8 +3,9 @@
 import { useRef, useState, useEffect } from "react";
 import { ImagePlus, X, Loader2 } from "lucide-react";
 import { Category, CourseFormData } from "@/types/course";
-import { fetchCategories, uploadThumbnail } from "@/lib/supabase-course";
+import { fetchCategories } from "@/lib/supabase-course";
 import { supabase } from "@/lib/supabase";
+import { uploadToS3, deleteFromS3, extractS3Key } from "@/lib/s3Upload";
 
 interface Props {
   initialData?: Partial<CourseFormData>;
@@ -71,25 +72,31 @@ export default function Step1CourseDetails({
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
   }
 
-  async function handleThumbnailChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+async function handleThumbnailChange(e: React.ChangeEvent<HTMLInputElement>) {
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    const localUrl = URL.createObjectURL(file);
-    setThumbPreview(localUrl);
-    setUploadingThumb(true);
+  const localUrl = URL.createObjectURL(file);
+  setThumbPreview(localUrl);
+  setUploadingThumb(true);
 
-    try {
-      const publicUrl = await uploadThumbnail(file);
-      set("thumbnail_url", publicUrl);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to upload thumbnail. Please try again.");
-      setThumbPreview(null);
-    } finally {
-      setUploadingThumb(false);
+  try {
+    // delete old thumbnail from S3 if it exists and is an S3 URL
+    if (form.thumbnail_url && form.thumbnail_url.includes('amazonaws.com')) {
+      const oldKey = extractS3Key(form.thumbnail_url, 'courses');
+      if (oldKey) await deleteFromS3(oldKey);
     }
+
+    const publicUrl = await uploadToS3(file, 'courses');
+    set("thumbnail_url", publicUrl);
+  } catch (err) {
+    console.error(err);
+    alert("Failed to upload thumbnail. Please try again.");
+    setThumbPreview(null);
+  } finally {
+    setUploadingThumb(false);
   }
+}
 
   function removeThumbnail() {
     setThumbPreview(null);

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Search, Plus, Edit2, Trash2, Eye } from "lucide-react";
+import { deleteFromS3, extractS3Key } from "@/lib/s3Upload";
 
 type Product = {
   id: string;
@@ -47,12 +48,21 @@ export default function ProductsPage() {
     router.push(`/products/${id}/edit`);
   };
 
-  const handleDelete = async (id: string) => {
-    const confirmed = confirm("Are you sure you want to delete this product? This action cannot be undone.");
-    if (!confirmed) return;
+const handleDelete = async (id: string) => {
+  const confirmed = confirm("Are you sure you want to delete this product? This action cannot be undone.");
+  if (!confirmed) return;
 
-    setDeletingId(id);
+  setDeletingId(id);
 
+  try {
+    // get the product's media URLs before deleting
+    const { data: product } = await supabase
+      .from("products")
+      .select("thumbnail_url, images, videos")
+      .eq("id", id)
+      .single();
+
+    // delete the product from Supabase first
     const { error } = await supabase
       .from("products")
       .delete()
@@ -61,12 +71,32 @@ export default function ProductsPage() {
     if (error) {
       console.error("Delete error:", error);
       alert("Failed to delete product. Please try again.");
-    } else {
-      setProducts((prev) => prev.filter((p) => p.id !== id));
+      setDeletingId(null);
+      return;
     }
 
+    // update the UI
+    setProducts((prev) => prev.filter((p) => p.id !== id));
+
+    // delete all media from S3
+    if (product) {
+      const allUrls = [
+        ...(product.images || []),
+        ...(product.videos || []),
+      ];
+
+      // delete all images and videos
+      for (const url of allUrls) {
+        const key = extractS3Key(url, 'products');
+        if (key) await deleteFromS3(key);
+      }
+    }
+  } catch (err) {
+    console.error(err);
+  } finally {
     setDeletingId(null);
-  };
+  }
+};
 
   const filteredProducts = products.filter((product) =>
     product.title.toLowerCase().includes(search.toLowerCase())

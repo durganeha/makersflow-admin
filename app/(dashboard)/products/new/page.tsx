@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Save, Upload, X, Star, Play } from "lucide-react";
+import { uploadToS3 } from "@/lib/s3Upload";
 
 type MediaFile = {
   file: File;
@@ -81,24 +82,7 @@ export default function NewProductPage() {
     });
   };
 
-  // Upload a single file to Supabase Storage
-  const uploadFile = async (media: MediaFile, productId: string): Promise<string | null> => {
-    const ext = media.file.name.split(".").pop();
-    const folder = media.type === "video" ? "videos" : "images";
-    const path = `products/${productId}/${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-    const { error } = await supabase.storage
-      .from("product-media")
-      .upload(path, media.file, { upsert: false });
-
-    if (error) {
-      console.error("Upload error:", error);
-      return null;
-    }
-
-    const { data } = supabase.storage.from("product-media").getPublicUrl(path);
-    return data.publicUrl;
-  };
 
   async function handleAddCategory() {
     const name = newCategoryName.trim();
@@ -169,37 +153,49 @@ export default function NewProductPage() {
     const imageUrls: string[] = [];
     const videoUrls: string[] = [];
 
-    for (let i = 0; i < mediaFiles.length; i++) {
+   for (let i = 0; i < mediaFiles.length; i++) {
       const media = mediaFiles[i];
-      setUploadProgress(
-        `Uploading ${media.type} ${i + 1} of ${mediaFiles.length}...`
-      );
-      const url = await uploadFile(media, product.id);
-      if (url) {
-        if (media.type === "video") videoUrls.push(url);
-        else imageUrls.push(url);
-      }
-    }
+  setUploadProgress(
+    `Uploading ${media.type} ${i + 1} of ${mediaFiles.length}...`
+  );
+  try {
+    const url = await uploadToS3(media.file, 'products');
+    if (media.type === "video") videoUrls.push(url);
+    else imageUrls.push(url);
+  } catch (err) {
+    console.error(`Failed to upload ${media.type}:`, err);
+  }
+}
 
     // Step 3: Update product with media URLs
-    const thumbnailMedia = mediaFiles[thumbnailIndex];
-    const thumbnailUrl =
-      thumbnailMedia?.type === "image" ? imageUrls[0] : undefined;
+    // Step 3: Update product with media URLs
+const thumbnailMedia = mediaFiles[thumbnailIndex];
+const thumbnailUrl =
+  thumbnailMedia?.type === "image" ? imageUrls[thumbnailIndex] || imageUrls[0] : undefined;
 
-    setUploadProgress("Saving media...");
-    await supabase
-      .from("products")
-      .update({
-        images: imageUrls,
-        videos: videoUrls,
-        thumbnail_url: thumbnailUrl || imageUrls[0] || null,
-      })
-      .eq("id", product.id);
+setUploadProgress("Saving media...");
+const { error: updateError } = await supabase
+  .from("products")
+  .update({
+    images: imageUrls,
+    videos: videoUrls,
+    thumbnail_url: thumbnailUrl || imageUrls[0] || null,
+  })
+  .eq("id", product.id);
 
-    setLoading(false);
-    setUploadProgress("");
-    router.push("/products");
-  }
+if (updateError) {
+  console.error("Update error:", updateError);
+  alert("Failed to save media: " + updateError.message);
+  setLoading(false);
+  setUploadProgress("");
+  return;
+}
+
+console.log("Update successful, redirecting...");
+setLoading(false);
+setUploadProgress("");
+router.push("/products");
+}
 
   const imageFiles = mediaFiles.filter((m) => m.type === "image");
   const videoFiles = mediaFiles.filter((m) => m.type === "video");
